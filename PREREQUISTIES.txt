@@ -1,0 +1,42 @@
+================== PREREQUISTIES=================
+
+Required Python Version:
+Python 3.9 (as you mentioned earlier — PyAudio works reliably on 3.7–3.9)
+
+Step 1: Install Required Libraries
+Open your terminal/command prompt and run these commands one by one:
+pip install speechrecognition pyttsx3 pywhatkit wikipedia pyjokes requests feedparser
+
+Step 2: Install PyAudio (The Tricky One)
+Since you're on Python 3.9, this should work:
+Windows (most common):
+pip install pyaudio
+
+Step 3: System Requirements
+
+Working microphone (built-in or external) — test it in Windows Voice Recorder or system settings
+Speakers or headphones — for the assistant to speak back
+Internet connection — required for:
+Speech recognition (Google API)
+Playing songs on YouTube
+Wikipedia lookup
+Weather and news
+Opening websites
+
+Step 4: Optional (But Recommended)
+
+Install a good font for better UI look (Segoe UI is default on Windows)
+Allow microphone access in your system privacy settings
+
+Final Check Before Running
+After installing everything, test imports in Python:
+
+import speech_recognition as sr
+import pyttsx3
+import pywhatkit
+import wikipedia
+import pyjokes
+import feedparser
+import requests
+import tkinter  # Comes built-in
+print("All libraries imported successfully!")
