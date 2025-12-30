@@ -1,0 +1,260 @@
+===============BEZALEEL VERSION 1=============
+
+import warnings
+warnings.filterwarnings("ignore")
+
+import speech_recognition as sr
+import pyttsx3
+import datetime
+import pywhatkit
+import wikipedia
+import pyjokes
+import feedparser
+import webbrowser
+import requests
+import tkinter as tk
+from threading import Thread
+from queue import Queue, Empty
+import time
+
+# ====================== SPEECH SYSTEM ======================
+speech_queue = Queue()
+command_mode = False
+last_command_time = 0
+
+def speech_worker():
+    engine = pyttsx3.init()
+    voices = engine.getProperty('voices')
+    if len(voices) > 1:
+        engine.setProperty('voice', voices[1].id)  # Female voice preferred
+    else:
+        engine.setProperty('voice', voices[0].id)
+    engine.setProperty('rate', 180)
+
+    while True:
+        try:
+            text = speech_queue.get(timeout=0.5)
+            if text is None: break
+            add_assistant_bubble(text)
+            engine.say(text)
+            engine.runAndWait()
+            engine.stop()
+        except Empty:
+            continue
+
+Thread(target=speech_worker, daemon=True).start()
+
+def speak(text):
+    global last_command_time
+    last_command_time = time.time()
+    speech_queue.put(text)
+
+# ====================== CHAT BUBBLES ======================
+def add_user_bubble(text):
+    bubble_frame = tk.Frame(chat_frame, bg="#0f0f1a")
+    bubble_frame.pack(anchor="e", pady=8, padx=(80, 20), fill="x")
+
+    bubble = tk.Label(bubble_frame, text=text, bg="#2d2d3d", fg="#ffffff",
+                      wraplength=500, padx=18, pady=12, font=("Segoe UI", 11),
+                      relief="flat", bd=0)
+    bubble.pack(anchor="e")
+
+    chat_canvas.yview_moveto(1.0)
+
+def add_assistant_bubble(text):
+    bubble_frame = tk.Frame(chat_frame, bg="#0f0f1a")
+    bubble_frame.pack(anchor="w", pady=8, padx=(20, 80), fill="x")
+
+    bubble = tk.Label(bubble_frame, text=text, bg="#4a3aff", fg="#ffffff",
+                      wraplength=500, padx=18, pady=12, font=("Segoe UI", 11, "bold"),
+                      relief="flat", bd=0)
+    bubble.pack(anchor="w")
+
+    chat_canvas.yview_moveto(1.0)
+
+# ====================== COMMANDS ======================
+def open_website(name, url):
+    speak(f"Opening {name}")
+    webbrowser.open(url)
+
+def get_news():
+    try:
+        feed = feedparser.parse("http://feeds.bbci.co.uk/news/rss.xml")
+        headlines = [entry.title for entry in feed.entries[:5]]
+        return "Latest news: " + ". ".join(headlines)
+    except:
+        return "Couldn't fetch news right now."
+
+def get_weather(city="London"):
+    try:
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid=27f7e6f6b8d9c8c8f25a3c48e5e9d7a3&units=metric"
+        data = requests.get(url).json()
+        if data["cod"] == 200:
+            temp = data["main"]["temp"]
+            desc = data["weather"][0]["description"]
+            return f"In {city}, it's {temp} degrees Celsius with {desc}."
+        else:
+            return "Couldn't get weather."
+    except:
+        return "Weather service unavailable."
+
+def process_command(query):
+    query = query.lower().strip()
+
+    if query.startswith("play"):
+        song = query.replace("play", "").strip()
+        if song:
+            speak(f"Playing {song}")
+            pywhatkit.playonyt(song)
+        else:
+            speak("What song would you like, Bezaleel?")
+
+    elif "time" in query:
+        time_str = datetime.datetime.now().strftime("%I:%M %p")
+        speak(f"It's {time_str}")
+
+    elif "date" in query or "today" in query:
+        date_str = datetime.datetime.now().strftime("%B %d, %Y")
+        speak(f"Today is {date_str}")
+
+    elif any(x in query for x in ["who is", "what is", "tell me about"]):
+        topic = query.replace("who is", "").replace("what is", "").replace("tell me about", "").strip()
+        if topic:
+            try:
+                info = wikipedia.summary(topic, sentences=2)
+                speak(info)
+            except:
+                speak(f"Sorry, I couldn't find info about {topic}, Bezaleel.")
+        else:
+            speak("Who or what do you want to know about?")
+
+    elif "news" in query:
+        speak(get_news())
+
+    elif "joke" in query:
+        speak(pyjokes.get_joke())
+
+    elif "weather" in query:
+        city = query.replace("weather", "").replace("in", "").strip().capitalize() or "London"
+        speak(get_weather(city))
+
+    elif "open youtube" in query: open_website("YouTube", "https://youtube.com")
+    elif "open google" in query: open_website("Google", "https://google.com")
+    elif "open gmail" in query or "open email" in query: open_website("Gmail", "https://mail.google.com")
+    elif "open whatsapp" in query: open_website("WhatsApp Web", "https://web.whatsapp.com")
+    elif "open facebook" in query: open_website("Facebook", "https://facebook.com")
+    elif "open instagram" in query: open_website("Instagram", "https://instagram.com")
+    elif "open twitter" in query or "open x" in query: open_website("X", "https://x.com")
+    elif "open reddit" in query: open_website("Reddit", "https://reddit.com")
+    elif "open netflix" in query: open_website("Netflix", "https://netflix.com")
+    elif "open amazon" in query: open_website("Amazon", "https://amazon.com")
+    elif "open spotify" in query: open_website("Spotify", "https://open.spotify.com")
+    elif "open github" in query: open_website("GitHub", "https://github.com")
+    elif "open linkedin" in query: open_website("LinkedIn", "https://linkedin.com")
+    elif "open wikipedia" in query: open_website("Wikipedia", "https://wikipedia.org")
+    elif "open discord" in query: open_website("Discord", "https://discord.com/app")
+    elif "open canva" in query: open_website("Canva", "https://www.canva.com")
+    elif "open chatgpt" in query or "open chat gpt" in query: open_website("ChatGPT", "https://chatgpt.com")
+
+    elif query.startswith("search for"):
+        term = query.replace("search for", "").strip()
+        if term:
+            speak(f"Searching for {term}")
+            webbrowser.open(f"https://www.google.com/search?q={term.replace(' ', '+')}")
+        else:
+            speak("What should I search for?")
+
+    elif any(word in query for word in ["bye", "exit", "stop", "goodbye", "sleep"]):
+        global command_mode
+        command_mode = False
+        speak("Going to sleep, Bezaleel. Say my name to wake me anytime.")
+        status_label.config(text="Sleeping... Say 'Bezaleel' to wake", fg="#ff6666")
+
+    else:
+        speak("I didn't understand that command, Bezaleel. Try again.")
+
+# ====================== CONTINUOUS LISTENING ======================
+def continuous_listen():
+    global command_mode, last_command_time
+    r = sr.Recognizer()
+
+    with sr.Microphone() as source:
+        while True:
+            if command_mode:
+                remaining = int(30 - (time.time() - last_command_time))
+                if remaining <= 0:
+                    command_mode = False
+                    root.after(0, lambda: status_label.config(text="Sleeping... Say 'Bezaleel' to wake", fg="#ff6666"))
+                else:
+                    root.after(0, lambda r=remaining: status_label.config(text=f"Active • {r}s left", fg="#66ffaa"))
+            else:
+                root.after(0, lambda: status_label.config(text="Sleeping... Say 'Bezaleel' to wake", fg="#aaaa00"))
+
+            r.adjust_for_ambient_noise(source, duration=0.2)
+            try:
+                audio = r.listen(source, timeout=1, phrase_time_limit=8)
+            except sr.WaitTimeoutError:
+                continue
+
+            try:
+                text = r.recognize_google(audio).lower()
+                add_user_bubble(text)
+
+                if not command_mode:
+                    if "bezaleel" in text:
+                        command_mode = True
+                        last_command_time = time.time()
+                        speak("Yes, Bezaleel? I'm awake and ready!")
+                    continue
+                else:
+                    last_command_time = time.time()
+                    process_command(text)
+            except sr.UnknownValueError:
+                if command_mode:
+                    speak("Sorry, I didn't catch that, Bezaleel.")
+            except Exception:
+                speak("There was a listening error.")
+
+Thread(target=continuous_listen, daemon=True).start()
+
+# ====================== PREMIUM GRADIENT THEME GUI ======================
+root = tk.Tk()
+root.title("Bezaleel - Your Personal Voice Assistant")
+root.geometry("850x950")
+root.configure(bg="#0f0f1a")
+
+# Header with premium feel
+header_frame = tk.Frame(root, bg="#1a1a2e", height=140)
+header_frame.pack(fill="x")
+header_frame.pack_propagate(False)
+
+tk.Label(header_frame, text="Bezaleel", font=("Helvetica", 48, "bold"), fg="#8a7fff", bg="#1a1a2e").pack(pady=40)
+
+# Chat scroll area
+chat_canvas = tk.Canvas(root, bg="#0f0f1a", highlightthickness=0)
+chat_scroll = tk.Scrollbar(root, orient="vertical", command=chat_canvas.yview, bg="#2d2d3d", troughcolor="#0f0f1a")
+chat_inner = tk.Frame(chat_canvas, bg="#0f0f1a")
+
+chat_inner.bind("<Configure>", lambda e: chat_canvas.configure(scrollregion=chat_canvas.bbox("all")))
+chat_canvas.create_window((0, 0), window=chat_inner, anchor="nw")
+chat_canvas.configure(yscrollcommand=chat_scroll.set)
+
+chat_frame = tk.Frame(chat_inner, bg="#0f0f1a")
+chat_frame.pack(fill="both", expand=True, padx=30, pady=20)
+
+chat_canvas.pack(side="left", fill="both", expand=True, padx=(30, 0), pady=(0, 20))
+chat_scroll.pack(side="right", fill="y", padx=(0, 30), pady=(0, 20))
+
+# Status label
+status_label = tk.Label(root, text="Sleeping... Say 'Bezaleel' to wake", font=("Segoe UI", 14), fg="#aaaa00", bg="#0f0f1a")
+status_label.pack(pady=20)
+
+# Personal greeting
+add_assistant_bubble("Hello, Bezaleel!\nI'm your personal voice assistant.\nSay 'Bezaleel' once to wake me — then just speak normally for 30 seconds.")
+
+def on_closing():
+    speech_queue.put(None)
+    root.destroy()
+
+root.protocol("WM_DELETE_WINDOW", on_closing)
+root.mainloop()
